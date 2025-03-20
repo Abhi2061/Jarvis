@@ -6,10 +6,39 @@ import playsound
 import os
 import webbrowser
 import datetime
+import requests
+import json
 
 # Initialize recognizer and text-to-speech engine
 recognizer = sr.Recognizer()
 engine = pyttsx3.init()
+
+
+def ask_gpt_brain(prompt):
+    try:
+        response = requests.post(
+            'http://localhost:11434/api/generate',
+            json={'model': 'mistral', 'prompt': prompt},
+            stream=True  
+        )
+        
+        reply = ""
+
+        # Stream line by line
+        for line in response.iter_lines(decode_unicode=True):
+            if line:
+                json_data = json.loads(line)
+                # Each streamed JSON has a "response" field
+                chunk = json_data.get('response', '')
+                reply += chunk
+                print(chunk, end='', flush=True)  # Show streaming chunks live
+        
+        print()  # newline after stream ends
+        return reply
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return "Sorry, I couldn't connect to my brain."
 
 def change_speed(sound):
     # Manually adjust speed (without changing pitch)
@@ -65,26 +94,26 @@ def main():
         if "hello" in command:
             speak("Hello Abhishek! How are you?")
         
-        elif "exit" in command or "stop" in command:
-            speak("Goodbye!")
-            break
-        
-        elif "Abhishek" in command:
-            speak("I am Jarvis, your personal AI assistant.")
-
         elif 'open youtube' in command:
             webbrowser.open("https://www.youtube.com")
+            continue
         
         elif 'open google' in command:
             webbrowser.open("https://www.google.com")
+            continue
         
         elif 'time' in command:
             time = datetime.datetime.now().strftime("%H:%M:%S")
             speak(time)
-            print(f"The time is {time}")
+            continue
+
+        elif "exit" in command or "stop" in command or "bye" in command:
+            speak("Goodbye!")
+            break
         
-        elif command != "":
-            speak(f"You said: {command}")
+        else:
+            reply = ask_gpt_brain(command)
+            speak(reply)
 
 if __name__ == "__main__":
     main()
